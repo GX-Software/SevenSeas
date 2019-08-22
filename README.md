@@ -1,0 +1,2 @@
+# SevenSeas
+模仿PopCap公司SevenSeas游戏制作的小游戏

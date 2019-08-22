@@ -1,0 +1,319 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<title>地图制作器</title>
+</head>
+
+<body style = "margin : 0px;">
+	<div id = "candiv" style = "width: 100%; height : 100%; text-align: center;">
+		<canvas id = "canvas">很遗憾，您的浏览器不支持本制作器！</canvas><br />
+		<button style = "button" onclick = "makeMapData()">生成地图数据</button>
+		<button style = "button" onclick = "init()">初始化</button>
+		<button style = "button" onclick = "input()">输入代码</button>
+	</div>
+	
+	<p id = "mapData" style = "font-size : 30px;"></p>
+	
+<script>
+	var can = document.getElementById("canvas");
+	var ctx = can.getContext("2d");
+	var size = 11;
+	var map = [
+	[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],];
+	var save = [
+	[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],];
+	var atomWidth = 0, atomHeight = 0, globalScale = 1;
+	
+	var images = {};
+	var oImgs = {
+		"sea" : "images/sea.png",
+		"island" : "images/islands.png",
+		"boat" : "images/boat.png",
+		"pirate" : "images/pirate.png",
+		"spirate" : "images/spirate.png",
+		"xpirate" : "images/xpirate.png",
+		"dead" : "images/dead.png",
+		"whirl" : "images/whirl.png",
+	}
+	var step = 0; // 循环动画帧控制
+	
+	function imgPreload(srcs, callback)
+	{
+		var count = 0, imgNum = countOf(srcs);
+	
+		for(var src in srcs ) {
+			images[src] = new Image();
+			images[src].onload = function() {
+				if (++count >= imgNum)
+				{
+					callback(images);
+				}
+			}
+			
+			images[src].src = srcs[src];
+		}
+	}
+	
+	imgPreload(oImgs, function(images) {
+		// 重置画布大小
+		if (window.innerWidth < window.innerHeight) {
+			can.width = window.innerWidth * 0.7;
+			can.height = can.width;
+		}
+		else {
+			can.height = window.innerHeight * 0.7 - 5;
+			can.width = can.height;
+		}
+		atomWidth = can.width / size;
+		atomHeight = can.height / size;
+		
+		globalScale = atomWidth / images.sea.width;
+		
+		refreshScreen();
+		can.addEventListener('mouseup', handleMouseU, false);
+	});
+	
+	window.requestAnimFrame = (function(){
+		return (
+		window.requestAnimationFrame       ||
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame    ||
+		function(callback) {
+			window.setTimeout(callback, 1000 / 60);
+		});
+	})();
+	
+	function refreshMap()
+	{
+		drawMap(); // 初始化战场
+		drawItems(); // 绘制内容
+	}
+	
+	function drawMap()
+	{
+		for (var j = 0; j < size; j++) {
+			for (var i = 0;i < size; i++) {
+				ctx.drawImage(images.sea, atomWidth * i, atomHeight * j, atomWidth, atomHeight);
+			}
+		}
+	}
+	
+	function drawItems()
+	{
+		var pic, left = 0, top = 0, width = 0, height = 0, yPos = 1;
+		for (var j = 0; j < map.length; j++) {
+			for (var i = 0; i < map[j].length; i++) {
+				var pic;
+				switch(map[j][i])
+				{
+				case 1: // 绘制炮艇
+					pic = images.boat;
+					width = pic.width / 16;
+					height = pic.height / 8;
+					left = 6 * width;
+					top = Math.floor(step / 8) % 8 * height;
+					yPos = 2;
+					break;
+					
+				case 2: // 绘制漩涡
+					pic = images.whirl;
+					width = pic.width;
+					height = pic.height / 16;
+					left = 0;
+					top = Math.floor(step / 4) % 16 * height;
+					yPos = 2;
+					break;
+					
+				case 3: // 绘制无树小岛
+				case 4: // 绘制有树小岛
+					pic = images.island;
+					width = pic.width / 4;
+					height = pic.height / 2;
+					left = Math.floor(step / 8) % 4 * width;
+					top = (map[j][i] - 3) * height;
+					yPos = 1;
+					break;
+					
+				case 5: // 绘制废墟
+					pic = images.dead;
+					width = pic.width / 12;
+					height = pic.height;
+					left = Math.floor(step / 8) % 12 * width;
+					top = 0;
+					yPos = 2;
+					break;
+					
+				case 6: // 初级海盗
+					pic = images.pirate;
+					width = pic.width / 16;
+					height = pic.height / 8;
+					left = 6 * width;
+					top = Math.floor(step / 8) % 8 * height;;
+					yPos = 2;
+					break;
+					
+				case 7: // 中级海盗
+					pic = images.spirate;
+					width = pic.width / 16;
+					height = pic.height / 8;
+					left = 6 * width;
+					top = Math.floor(step / 8) % 8 * height;;
+					yPos = 2;
+					break;
+					
+				case 8: // 高级海盗
+					pic = images.xpirate;
+					width = pic.width / 16;
+					height = pic.height / 8;
+					left = 6 * width;
+					top = Math.floor(step / 8) % 8 * height;;
+					yPos = 2;
+					break;
+					
+				default:
+					continue;
+				}
+				
+				//每个图片不一样宽 需要在对应地板的中心绘制地图
+				ctx.drawImage(pic, left, top, width, height, atomWidth * i - (width * globalScale - atomWidth) / 2, atomHeight * j - (height * globalScale - atomHeight) / yPos, width * globalScale, height * globalScale);
+			}
+		}
+	}
+	
+	function refreshScreen()
+	{
+		step = (step + 1) % 192;
+		
+		ctx.clearRect(0, 0, can.width, can.height);
+		
+		ctx.save();
+		refreshMap();
+		ctx.restore();
+		
+		requestAnimationFrame(refreshScreen);
+	}
+	
+	function getEventPosition(e)
+	{
+		var box = can.getBoundingClientRect();
+		
+		return {
+			x: (e.clientX - box.left) * (can.width / box.width),
+			y: (e.clientY - box.top) * (can.height / box.height)
+				
+			/*
+			 * 此处不用下面两行是为了防止使用CSS和JS改变了canvas的高宽之后是表面积拉大而实际
+			 * 显示像素不变而造成的坐标获取不准的情况
+			x: (x - bbox.left),
+			y: (y - bbox.top)
+			*/
+		};
+	}
+	
+	function handleMouseU(e)
+	{
+		var itemList = [0, 6, 7, 8, 4];
+		var p = getEventPosition(e);
+		
+		var x = Math.floor(p.x / atomWidth);
+		var y = Math.floor(p.y / atomHeight);
+		
+		var i = 0;
+		for (; i < itemList.length; i++) {
+			if (itemList[i] == map[y][x]) {
+				break;
+			}
+		}
+		
+		if (i < itemList.length) {
+			map[y][x] = itemList[(i + 1) % itemList.length];
+		}
+	}
+	
+	function makeMapData()
+	{
+		var string = "";
+		for (var i = 0; i < size; i++) {
+			for (var j = 0; j < size; j++) {
+				string += map[i][j];
+			}
+		}
+		
+		document.getElementById("mapData").innerHTML = string;
+	}
+	
+	function init()
+	{
+		for (var i = 0; i < size; i++) {
+			for (var j = 0; j < size; j++) {
+				map[i][j] = save[i][j];
+			}
+		}
+		
+		document.getElementById("mapData").innerHTML = "";
+	}
+	
+	function input()
+	{
+		var str = prompt("请输入地图数据：", "");
+		if (!str || str.length < 11*11) {
+			return;
+		}
+		
+		var index = 0, item = 0;
+		for (var i = 0; i < size; i++) {
+			for (var j = 0; j < size; j++) {
+				item = parseInt(str.slice(index, index + 1));
+				index++;
+				if (item !== item) {
+					j--;
+					continue;
+				}
+				map[i][j] = item;
+			}
+		}
+		
+		map[Math.floor(size/2)][Math.floor(size/2)] = 1;
+		document.getElementById("mapData").innerHTML = "";
+	}
+	
+	function countOf(obj)
+	{
+		var objType = typeof obj;
+		if(objType == "string") {
+			return obj.length;
+		}
+		else if(objType == "object") {
+			var objLen = 0;
+			for(var i in obj) {
+				objLen++;
+			}
+			return objLen;
+		}
+		return false;
+	}
+</script>
+</body>
+</html>
